@@ -32,7 +32,7 @@ void Assembler::createReadGraph2(
     double maxDriftPercentile,
     double maxTrimPercentile)
 {
-    const bool debug = false;
+    const bool debug = true;
 
     vector<bool> keepAlignment(alignmentData.size(), false);
 
@@ -49,11 +49,13 @@ void Assembler::createReadGraph2(
         alignmentInfoCsv
             << "readId0" << ','
             << "readId1" << ','
+            << "isSameStrand" << ','
             << "minAlignedFraction" << ','
             << "markerCount" << ','
             << "maxDrift" << ','
             << "maxSkip" << ','
-            << "trim" << '\n';
+            << "trim" << ','
+            << "inReadGraph" << '\n';
     }
 
     // Sample all available alignments that pass the initial permissive criteria
@@ -67,16 +69,6 @@ void Assembler::createReadGraph2(
         maxDriftHistogram.update(info.maxDrift);
         maxSkipHistogram.update(info.maxSkip);
         maxTrimHistogram.update(trim);
-
-        if (debug) {
-            alignmentInfoCsv << alignmentData[i].readIds[0] << ','
-                             << alignmentData[i].readIds[1] << ','
-                             << info.minAlignedFraction() << ','
-                             << info.markerCount << ','
-                             << info.maxDrift << ','
-                             << info.maxSkip << ','
-                             << trim << '\n';
-        }
     }
 
     // Minimums
@@ -151,7 +143,26 @@ void Assembler::createReadGraph2(
             const uint32_t alignmentId = p.second;
             keepAlignment[alignmentId] = true;
         }
+
+        if (debug) {
+            for(const uint32_t alignmentId: alignmentTable[OrientedReadId(readId, 0).getValue()]) {
+                const AlignmentInfo& info = alignmentData[alignmentId].info;
+                const auto trims = info.computeTrim();
+                const auto trim = max(trims.first, trims.second);
+
+                alignmentInfoCsv << alignmentData[alignmentId].readIds[0] << ','
+                                 << alignmentData[alignmentId].readIds[1] << ','
+                                 << alignmentData[alignmentId].isSameStrand << ','
+                                 << info.minAlignedFraction() << ','
+                                 << info.markerCount << ','
+                                 << info.maxDrift << ','
+                                 << info.maxSkip << ','
+                                 << trim << ','
+                                 << keepAlignment[alignmentId] << '\n';
+            }
+        }
     }
+
     const size_t keepCount = count(keepAlignment.begin(), keepAlignment.end(), true);
     cout << "Keeping " << keepCount << " alignments of " << keepAlignment.size() << endl;
 
